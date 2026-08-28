@@ -28,9 +28,10 @@ DEFAULT_OUT_OF_CONTEXT_ARTIFACT = (
     PROJECT_ROOT / "artifact" / "out_of_context_model.pkl"
 )
 DEFAULT_TOXICITY_ARTIFACT = PROJECT_ROOT / "artifact" / "toxicity_model.pkl"
+DEFAULT_FINE_TUNED_ROOT = PROJECT_ROOT / "artifact" / "fine_tuned"
 
 
-@lru_cache(maxsize=3)
+@lru_cache(maxsize=128)
 def load_artifact(artifact_path: str, expected_task: str):
     artifact = joblib.load(artifact_path)
     required_keys = {
@@ -178,6 +179,70 @@ def predict(
         **results,
         "decision": "blocked" if blocked else "safe",
     }
+
+
+def get_fine_tuned_model_dir(
+    model_name: str, root: Path = DEFAULT_FINE_TUNED_ROOT
+) -> Path:
+    clean_name = model_name.strip()
+    if not clean_name or clean_name in {".", ".."} or Path(clean_name).name != clean_name:
+        raise ValueError(f"invalid model name: {model_name!r}")
+    model_dir = root / clean_name
+    if not model_dir.is_dir():
+        raise FileNotFoundError(f"fine-tuned model {clean_name!r} not found at {model_dir}")
+    return model_dir
+
+
+def load_fine_tuned_system_prompt(
+    model_name: str, root: Path = DEFAULT_FINE_TUNED_ROOT
+) -> str | None:
+    model_dir = get_fine_tuned_model_dir(model_name, root)
+    prompt_file = model_dir / "system_prompt.txt"
+    if prompt_file.is_file():
+        return prompt_file.read_text(encoding="utf-8").strip()
+    return None
+
+
+def predict_fine_tuned(
+    model_name: str,
+    user_prompt: str,
+    system_prompt: str | None = None,
+    root: Path = DEFAULT_FINE_TUNED_ROOT,
+) -> dict:
+    model_dir = get_fine_tuned_model_dir(model_name, root)
+    if system_prompt is None or not system_prompt.strip():
+        system_prompt = load_fine_tuned_system_prompt(model_name, root)
+        if not system_prompt:
+            raise ValueError(
+                f"no system prompt provided and model {model_name!r} has no saved system_prompt.txt"
+            )
+
+    prompt_injection_path = model_dir / "prompt_injection_model.pkl"
+    out_of_context_path = model_dir / "out_of_context_model.pkl"
+    toxicity_path = model_dir / "toxicity_model.pkl"
+
+    result = predict(
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        prompt_injection_artifact_path=(
+            prompt_injection_path
+            if prompt_injection_path.is_file()
+            else DEFAULT_PROMPT_INJECTION_ARTIFACT
+        ),
+        out_of_context_artifact_path=(
+            out_of_context_path
+            if out_of_context_path.is_file()
+            else DEFAULT_OUT_OF_CONTEXT_ARTIFACT
+        ),
+        toxicity_artifact_path=(
+            toxicity_path
+            if toxicity_path.is_file()
+            else DEFAULT_TOXICITY_ARTIFACT
+        ),
+    )
+    result["model_name"] = model_name
+    result["system_prompt_used"] = system_prompt
+    return result
 
 
 def parse_args():

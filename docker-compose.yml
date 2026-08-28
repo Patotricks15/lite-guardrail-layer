@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  guardrail-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: open-guardrail-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./artifact/fine_tuned:/app/artifact/fine_tuned
+      - ./data:/app/data
+    environment:
+      - PORT=8000
+      - LOG_LEVEL=info
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
