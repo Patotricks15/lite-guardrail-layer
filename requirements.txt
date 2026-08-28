@@ -1,0 +1,11 @@
+datasets
+joblib
+matplotlib
+numpy
+openpyxl
+pandas
+pyarrow
+scikit-learn>=1.6
+sentence-transformers
+streamlit
+xgboost
