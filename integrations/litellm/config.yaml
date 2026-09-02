@@ -1,0 +1,15 @@
+model_list:
+  - model_name: default
+    litellm_params:
+      model: openai/gpt-4o-mini
+      api_key: os.environ/OPENAI_API_KEY
+      guardrails:
+        - lite-guardrail
+
+guardrails:
+  - guardrail_name: lite-guardrail
+    litellm_params:
+      guardrail: litellm_adapter.LiteGuardrail
+      mode: pre_call
+      api_base: http://lite-guardrail-api:8000
+      default_on: true
