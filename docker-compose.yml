@@ -1,11 +1,11 @@
 version: "3.8"
 
 services:
-  guardrail-api:
+  lite-guardrail-api:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: open-guardrail-api
+    container_name: lite-guardrail-api
     ports:
       - "8000:8000"
     volumes:
